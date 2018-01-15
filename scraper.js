@@ -4,6 +4,15 @@ var cheerio = require("cheerio");
 var request = require("request");
 var sqlite3 = require("sqlite3").verbose();
 
+var results = [];
+
+var opt = {
+    url: 'https://www.worldcoinindex.com',
+    encoding: null
+}
+
+var URL = 'https://www.worldcoinindex.com';
+
 function initDatabase(callback) {
 	// Set up sqlite database.
 	var db = new sqlite3.Database("data.sqlite");
