@@ -3,6 +3,8 @@
 var cheerio = require("cheerio");
 var request = require("request");
 var sqlite3 = require("sqlite3").verbose();
+var tress = require('tress');
+
 
 var results = [];
 
@@ -13,56 +15,64 @@ var opt = {
 
 var URL = 'https://www.worldcoinindex.com';
 
-function initDatabase(callback) {
-	// Set up sqlite database.
-	var db = new sqlite3.Database("data.sqlite");
-	db.serialize(function() {
-		db.run("CREATE TABLE IF NOT EXISTS data (name TEXT)");
-		callback(db);
-	});
+// `tress` последовательно вызывает наш обработчик для каждой ссылки в очереди
+var q = tress(function(opt, callback){
+
+    //тут мы обрабатываем страницу с адресом url
+    request(opt, function (err, res, body) {
+        if (err) throw err;
+
+        //console.log(iconv.decode(body, 'win1251'));
+        //console.log(res.statusCode);
+
+        // парсим DOM
+        var $ = cheerio.load(body);
+
+        $("[class~=\"coinzoeken\"]").each(function(i, elem) {
+
+            results.push([
+                $(elem).find(".bitcoinName h1 span").text(),
+                $(elem).find(".ticker h2").text(),
+                $(elem).find(".pricekoers.lastprice [class='span']").text()
+            ]);
+        });
+
+        // $('btn btn-default pull-right').text().indexOf("Previous") > 0
+        var nextpage = $("a:contains('Next')");
+        if(nextpage.length > 0) {
+            console.log("Работает!!!!!");
+
+            var nextURL = {
+                url: URL + nextpage.attr('href'),
+                encoding: null
+            }
+
+            console.log(nextURL);
+            //q.push(nextURL);
+
+        } else {
+            console.log("Дно достигнуто!!!");
+        }
+
+        callback(); //вызываем callback в конце
+    });
+});
+
+// эта функция выполнится, когда в очереди закончатся ссылки
+q.drain = function(){
+    //fs.writeFileSync('./data.json', JSON.stringify(results, null, 4));
+    var db = new sqlite3.Database('data.sqlite');
+    db.serialize(function(){
+        db.run('DROP TABLE IF EXISTS data');
+        db.run('CREATE TABLE data (name TEXT, ticker TEXT, last_price TEXT)');
+        var stmt = db.prepare('INSERT INTO data VALUES (?, ?, ?)');
+        for (var i = 0; i < results.length; i++) {
+            stmt.run(results[i]);
+        };
+        stmt.finalize();
+        db.close();
+    });
 }
 
-function updateRow(db, value) {
-	// Insert some data.
-	var statement = db.prepare("INSERT INTO data VALUES (?)");
-	statement.run(value);
-	statement.finalize();
-}
-
-function readRows(db) {
-	// Read some data.
-	db.each("SELECT rowid AS id, name FROM data", function(err, row) {
-		console.log(row.id + ": " + row.name);
-	});
-}
-
-function fetchPage(url, callback) {
-	// Use request to read in pages.
-	request(url, function (error, response, body) {
-		if (error) {
-			console.log("Error requesting page: " + error);
-			return;
-		}
-
-		callback(body);
-	});
-}
-
-function run(db) {
-	// Use request to read in pages.
-	fetchPage("https://morph.io", function (body) {
-		// Use cheerio to find things in the page with css selectors.
-		var $ = cheerio.load(body);
-
-		var elements = $("div.media-body span.p-name").each(function () {
-			var value = $(this).text().trim();
-			updateRow(db, value);
-		});
-
-		readRows(db);
-
-		db.close();
-	});
-}
-
-initDatabase(run);
+// добавляем в очередь ссылку на первую страницу списка
+q.push(opt);
