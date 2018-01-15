@@ -48,7 +48,7 @@ var q = tress(function(opt, callback){
             }
 
             console.log(nextURL);
-            //q.push(nextURL);
+            q.push(nextURL);
 
         } else {
             console.log("Дно достигнуто!!!");
