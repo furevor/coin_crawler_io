@@ -4,7 +4,8 @@
   "dependencies": {
     "cheerio": "latest",
     "request": "latest",
-    "sqlite3": "latest"
+    "sqlite3": "latest",
+	"tress": "^1.0.3"
   },
   "keywords": [
     "scraper",
