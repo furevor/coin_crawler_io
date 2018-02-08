@@ -18,12 +18,10 @@ var URL = 'https://www.worldcoinindex.com';
 // `tress` последовательно вызывает наш обработчик для каждой ссылки в очереди
 var q = tress(function(opt, callback){
 
-    //тут мы обрабатываем страницу с адресом url
+    // обработка страницы с заданным URL
     request(opt, function (err, res, body) {
         if (err) throw err;
 
-        //console.log(iconv.decode(body, 'win1251'));
-        //console.log(res.statusCode);
 
         // парсим DOM
         var $ = cheerio.load(body);
@@ -37,10 +35,10 @@ var q = tress(function(opt, callback){
             ]);
         });
 
-        // $('btn btn-default pull-right').text().indexOf("Previous") > 0
+
         var nextpage = $("a:contains('Next')");
         if(nextpage.length > 0) {
-            console.log("Работает!!!!!");
+            console.log("Найдена следующая страница!");
 
             var nextURL = {
                 url: URL + nextpage.attr('href'),
@@ -51,15 +49,18 @@ var q = tress(function(opt, callback){
             q.push(nextURL);
 
         } else {
-            console.log("Дно достигнуто!!!");
+            console.log("Конец достигнут!");
         }
 
-        callback(); //вызываем callback в конце
+		//вызываем callback в конце
+        callback(); 
     });
 });
 
 // эта функция выполнится, когда в очереди закончатся ссылки
 q.drain = function(){
+
+	// строка для записи в файл, вместо базы
     //fs.writeFileSync('./data.json', JSON.stringify(results, null, 4));
     var db = new sqlite3.Database('data.sqlite');
     db.serialize(function(){
